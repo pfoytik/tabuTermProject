@@ -1,0 +1,12 @@
+C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/bin/Debug/termProject.exe
+C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/bin/Debug/termProject.pdb
+C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/obj/Debug/termProject.csprojResolveAssemblyReference.cache
+C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/obj/Debug/termProject.csproj.CoreCompileInputs.cache
+C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/obj/Debug/termProject.exe
+C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/obj/Debug/termProject.pdb
+/home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/bin/Debug/termProject.exe
+/home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/bin/Debug/termProject.pdb
+/home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.csprojResolveAssemblyReference.cache
+/home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.csproj.CoreCompileInputs.cache
+/home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.exe
+/home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.pdb
