@@ -1,9 +1,12 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Remoting.Messaging;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace termProject
 {
@@ -19,6 +22,8 @@ namespace termProject
         public static candidate chosen;
         public static Random r;
         public static List<tabuEntry> tabuList;
+        public static int iterNum;
+        public static int maxIters;
 
         public class tabuEntry
         {
@@ -88,12 +93,14 @@ namespace termProject
             tabuCount = 5;
             jobs = 0;
             candCount = 0;
+            maxIters = 100;
             processes = new Dictionary<int, process>();
             jobOrder = new List<int>();
             jobCosts = new List<int>();
             candList = new List<candidate>(); 
             chosen = new candidate(0);
             tabuList = new List<tabuEntry>();
+            iterNum = 0;
             
             readInput("test.etp");
             printData();
@@ -119,36 +126,53 @@ namespace termProject
         }
 
         static public void tabu()
-        {
+        {            
                 //generate initial candidate list
-                populateCandidates(5);
+                populateCandidates(tabuCount);
 
                 //Loop until converged or 100 iterations
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < maxIters; i++)
             {
-                
+                iterNum = i+1;
+                Console.WriteLine("Iteration number " + i);
                 //retrieve the current best candidate
                 //lowest value z and not tabu
                 //Add it to the tabu list
                 chooseCandidate();
+                
+                //Calculate new Objective Function for the chosen one
+                calcObj();
 
                 //generate neighbors from the current candidate
-                populateCandidates(5);
+                populateCandidates(tabuCount);
+                
             }
         }
 
         static public void chooseCandidate()
         {
+            //shortcut?
+            chosen = candList.OrderBy(x => x.objFunc).First();
+            //Console.WriteLine("Testing " + chosen.id + " :" + chosen.objFunc + " listLength = " + candList.Count + " " + candList.OrderByDescending(x => x.objFunc).First().objFunc);
+            
+            /*
             foreach(candidate cc in candList.OrderBy(x => x.objFunc))
             {
-                Console.WriteLine("Testing " + cc.objFunc);
+                Console.WriteLine("Testing " + cc.id + " :" + cc.objFunc + " listLenght = " + candList.Count);
                 if (chosen.id == -1)
                 {
                     chosen = cc;
                     //cc.tabu = tabuCount;
                 }
             }
+            */
             
+            //reduce the candidate list to maintain size
+            if (candList.Count > tabuCount)
+            {
+                int extra = candList.OrderByDescending(x => x.objFunc).First().id;
+                candList.RemoveAt(candList.FindIndex(x => x.id == extra));
+            }                     
         }
 
         static public void adjustTabuCounts()
@@ -181,24 +205,23 @@ namespace termProject
         {
             if (chosen.id > 0)
             {
-                for (int i = 0; i < n; i++)
-                {
-                    
-                }
+                //perform the swap assign
+                swapAssign();
+                listCosts();
             }
             else
             {
                 for (int i = 0; i < n; i++)
                 {
                     candCount++;
-                    candidate x = new candidate(candCount);
+                    chosen = new candidate(candCount);
                     randAssign();
                     listCosts();
-                    x.jsOrder = jobOrder.ToList();
-                    x.csOrder = jobCosts.ToList();
-                    x.objFunc = calcObj();
+                    chosen.jsOrder = jobOrder.ToList();
+                    chosen.csOrder = jobCosts.ToList();
+                    chosen.objFunc = calcObj();
 
-                    candList.Add(x);
+                    candList.Add(chosen);
                 }
             }
         }
@@ -290,20 +313,88 @@ namespace termProject
         }
 
         static public void swapAssign()
-        {
-            jobOrder = new List<int>();
-            int count = jobs;
-            List<int> jobList = new List<int>(processes.Keys);
-            
+        {                        
+            candidate temp = chosen;
+
+            int s1 = 0;
+            int s2 = 0;
+            if (tabuList.Count == 0)
+            {
+                s1 = chosen.jsOrder[r.Next(0, (jobs - 1))];
+                s2 = s1;
+                while (s2 != s1)
+                {
+                    s2 = chosen.jsOrder[r.Next(0, (jobs - 1))];
+                }
+            }
+            else
+            {                
+                bool repeat = true;
+                while (repeat)
+                {
+                    s1 = chosen.jsOrder[r.Next(0, (jobs - 1))];
+                    s2 = s1;
+                    while (s2 == s1)
+                    {
+                        s2 = chosen.jsOrder[r.Next(0, (jobs - 1))];
+                    }
+                    
+                    //make sure that the values do no exist in the tabu list
+                    foreach (tabuEntry te in tabuList)
+                    {
+                        if ((s1 == te.swap1 && s2 == te.swap2) || (s1 == te.swap2 && s2 == te.swap1))
+                        {
+                            break;
+                        }
+
+                        repeat = false;
+                    }
+                }
+            }
+            tabuEntry t = new tabuEntry(iterNum, s1, s2, tabuCount);
+            tabuList.Add(t);
+
+            theSwap(s1, s2);
         }
 
+        static public void theSwap(int index1, int index2)
+        {
+            int i1 = -1;
+            int i2 = -1;
+            for(int i=0; i<chosen.jsOrder.Count; i++)
+            {
+                if (chosen.jsOrder[i] == index1)
+                {
+                    i1 = i;
+                }
+                if (chosen.jsOrder[i] == index2)
+                {
+                    i2 = i;
+                }
+
+                if (i1>=0 && i2>=0)
+                    break;
+            }
+            
+            if(i1 < 0 || i2 < 0)
+                Console.WriteLine("Could not find our swap values " + index1 + " " + index2);
+
+            Console.WriteLine("Swapping " + index1 + " and " + index2);
+            chosen.jsOrder[i1] = index2;            
+            chosen.jsOrder[i2] = index1;
+            chosen.id += iterNum;
+            candList.Add(chosen);
+
+        }
+        
         static public void listCosts()
         {
-            jobCosts = new List<int>();
-            for (int i = 0; i < jobOrder.Count-1; i++)
+            //jobCosts = new List<int>();
+            for (int i = 0; i < chosen.jsOrder.Count-1; i++)
             {
                 //Console.WriteLine(jobOrder[i] + " " + jobOrder[i+1]);
-                jobCosts.Add(processes[jobOrder[i]].costs[jobOrder[i+1]]);
+                chosen.csOrder.Add(processes[chosen.jsOrder[i]].costs[chosen.jsOrder[i+1]]);
+                //jobCosts.Add(processes[jobOrder[i]].costs[jobOrder[i+1]]);
             }
         }
         

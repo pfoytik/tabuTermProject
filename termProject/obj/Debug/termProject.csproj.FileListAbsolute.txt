@@ -10,3 +10,9 @@ C:/Users/pfoytik/RiderProjects/optimizationMethods/termProject/termProject/obj/D
 /home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.csproj.CoreCompileInputs.cache
 /home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.exe
 /home/pfoytik/RiderProjects/OptimizationMethods/termProject/termProject/obj/Debug/termProject.pdb
+/home/pfoytik/RiderProjects/OptimizationMethods/tabuTermProject/termProject/bin/Debug/termProject.exe
+/home/pfoytik/RiderProjects/OptimizationMethods/tabuTermProject/termProject/bin/Debug/termProject.pdb
+/home/pfoytik/RiderProjects/OptimizationMethods/tabuTermProject/termProject/obj/Debug/termProject.csprojResolveAssemblyReference.cache
+/home/pfoytik/RiderProjects/OptimizationMethods/tabuTermProject/termProject/obj/Debug/termProject.csproj.CoreCompileInputs.cache
+/home/pfoytik/RiderProjects/OptimizationMethods/tabuTermProject/termProject/obj/Debug/termProject.exe
+/home/pfoytik/RiderProjects/OptimizationMethods/tabuTermProject/termProject/obj/Debug/termProject.pdb
