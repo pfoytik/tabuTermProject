@@ -20,10 +20,12 @@ namespace termProject
         public static List<int> jobCosts;
         public static List<candidate> candList;
         public static candidate chosen;
+        public static candidate best;
         public static Random r;
         public static List<tabuEntry> tabuList;
         public static int iterNum;
         public static int maxIters;
+        public static int bestObj;
 
         public class tabuEntry
         {
@@ -77,7 +79,20 @@ namespace termProject
                 tabu = 0;
                 swap1 = 0;
                 swap2 = 0;
-            }   
+            }
+
+            public candidate copyTo(candidate temp)
+            {
+                temp.id = id;
+                temp.jsOrder = jsOrder.ToList();
+                temp.csOrder = csOrder.ToList();
+                temp.objFunc = objFunc;
+                temp.tabu = tabu;
+                temp.swap1 = swap1;
+                temp.swap2 = swap2;
+
+                return temp;
+            }
         }
         
         public class process
@@ -93,20 +108,22 @@ namespace termProject
             tabuCount = 5;
             jobs = 0;
             candCount = 0;
-            maxIters = 100;
+            maxIters = 10;
             processes = new Dictionary<int, process>();
             jobOrder = new List<int>();
             jobCosts = new List<int>();
             candList = new List<candidate>(); 
             chosen = new candidate(0);
+            best = new candidate(0);
             tabuList = new List<tabuEntry>();
             iterNum = 0;
+            bestObj = 0;
             
             readInput("test.etp");
             printData();
             
             randAssign();
-            //assignJobOrder();
+            assignJobOrder();
             foreach (int a in jobOrder)
             {
                 Console.Write(a + " ");
@@ -123,6 +140,22 @@ namespace termProject
             
             Console.WriteLine();
             tabu();
+            
+            Console.WriteLine();
+            Console.WriteLine("##### Best OBJ : " + bestObj + " ####");
+            foreach (int a in best.jsOrder)
+            {
+                Console.Write(a + " ");
+            }
+            Console.WriteLine("End of jsOrder");
+
+            //listCosts();
+            foreach (int b in best.csOrder)
+            {
+                Console.Write(b + " ");
+            }
+            Console.WriteLine("End of csOrder");
+            Console.WriteLine("Best Obj = " + best.objFunc);
         }
 
         static public void tabu()
@@ -146,12 +179,14 @@ namespace termProject
                 //generate neighbors from the current candidate
                 populateCandidates(tabuCount);
                 
+                adjustTabuCounts();
             }
         }
 
         static public void chooseCandidate()
         {
             //shortcut?
+            chosen = new candidate(0);
             chosen = candList.OrderBy(x => x.objFunc).First();
             //Console.WriteLine("Testing " + chosen.id + " :" + chosen.objFunc + " listLength = " + candList.Count + " " + candList.OrderByDescending(x => x.objFunc).First().objFunc);
             
@@ -177,10 +212,15 @@ namespace termProject
 
         static public void adjustTabuCounts()
         {
-            foreach(tabuEntry t in tabuList)
+            for(int i=0; i<tabuList.Count; i++)
             {
-                t.subtractTabu();
-            }
+                tabuList[i].subtractTabu();
+                if (tabuList[i].tabuCount  == 0)
+                {
+                    //int loc = tabuList.IndexOf(t);
+                    tabuList.RemoveAt(i);
+                }
+            }           
         }
 
         static public void assignJobOrder()
@@ -208,6 +248,7 @@ namespace termProject
                 //perform the swap assign
                 swapAssign();
                 listCosts();
+                candList.Add(chosen);
             }
             else
             {
@@ -388,13 +429,23 @@ namespace termProject
         }
         
         static public void listCosts()
-        {
-            //jobCosts = new List<int>();
-            for (int i = 0; i < chosen.jsOrder.Count-1; i++)
+        {            
+            if (chosen.id > 0)
             {
-                //Console.WriteLine(jobOrder[i] + " " + jobOrder[i+1]);
-                chosen.csOrder.Add(processes[chosen.jsOrder[i]].costs[chosen.jsOrder[i+1]]);
-                //jobCosts.Add(processes[jobOrder[i]].costs[jobOrder[i+1]]);
+                chosen.csOrder = new List<int>();
+                
+                for (int i = 0; i < chosen.jsOrder.Count - 1; i++)
+                {
+                    chosen.csOrder.Add(processes[chosen.jsOrder[i]].costs[chosen.jsOrder[i + 1]]);                    
+                }
+            }
+            else
+            {                
+                jobCosts = new List<int>();
+                for (int i = 0; i < jobOrder.Count - 1; i++)
+                {
+                    jobCosts.Add(processes[jobOrder[i]].costs[jobOrder[i + 1]]);
+                }
             }
         }
         
@@ -404,23 +455,74 @@ namespace termProject
             int counter = 1;
             int totalEarly = 0;
             int totalTardy = 0;
-            for (int i = 0; i<deadline-1; i++)
+
+            Console.WriteLine("BLAH BLAH BLAH " + chosen.id);
+            if (chosen.id == 0)
             {
-                totalEarly += counter * jobCosts[i];
-                counter++;
+                for (int i = 0; i < deadline - 1; i++)
+                {
+                    totalEarly += counter * jobCosts[i];
+                    counter++;
+                }
+
+                //counter = 1;
+                for (int i = deadline - 1; i <= jobCosts.Count - 1; i++)
+                {
+                    totalTardy += counter * jobCosts[i];
+                    counter--;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < deadline - 1; i++)
+                {
+                    totalEarly += counter * chosen.jsOrder[i];
+                    counter++;
+                }
+
+                //counter = 1;
+                for (int i = deadline - 1; i <= chosen.csOrder.Count - 1; i++)
+                {
+                    totalTardy += counter * chosen.csOrder[i];
+                    counter--;
+                }
             }
 
-            //counter = 1;
-            for (int i = deadline-1; i<= jobCosts.Count-1; i++)
+            if (chosen.id > 0)
             {
-                totalTardy += counter * jobCosts[i];
-                counter--;
-            }
+                foreach (int a in chosen.jsOrder)
+                {
+                    Console.Write(a + " ");
+                }
+                Console.WriteLine("End of jsOrder");
 
+                //listCosts();
+                foreach (int b in chosen.csOrder)
+                {
+                    Console.Write(b + " ");
+                }
+                Console.WriteLine("End of csOrder");
+            }
+            
             int z = totalEarly + totalTardy;
+            Console.WriteLine("The process list : " + chosen.jsOrder.Count + " " + deadline);
             Console.WriteLine("The total Early = " + totalEarly);
             Console.WriteLine("The total Tarty = " + totalTardy);
             Console.WriteLine("The objective function result is : " + z);
+            if (bestObj == 0)
+            {
+                bestObj = z;
+                best = chosen.copyTo(best);
+            }
+            else
+            {
+                if (z < bestObj)
+                {
+                    bestObj = z;
+                    best = chosen.copyTo(best);
+                }
+            }
+            
             return z;
         }
     }
