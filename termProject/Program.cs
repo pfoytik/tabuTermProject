@@ -476,7 +476,7 @@ namespace termProject
             {
                 for (int i = 0; i < deadline - 1; i++)
                 {
-                    totalEarly += counter * chosen.jsOrder[i];
+                    totalEarly += counter * chosen.csOrder[i];
                     counter++;
                 }
 
@@ -505,6 +505,7 @@ namespace termProject
             }
             
             int z = totalEarly + totalTardy;
+            chosen.objFunc = z;
             Console.WriteLine("The process list : " + chosen.jsOrder.Count + " " + deadline);
             Console.WriteLine("The total Early = " + totalEarly);
             Console.WriteLine("The total Tarty = " + totalTardy);
@@ -512,14 +513,18 @@ namespace termProject
             if (bestObj == 0)
             {
                 bestObj = z;
+                best = new candidate(0);
                 best = chosen.copyTo(best);
+                best.objFunc = chosen.objFunc;
             }
             else
             {
                 if (z < bestObj)
                 {
                     bestObj = z;
+                    best = new candidate(0);
                     best = chosen.copyTo(best);
+                    best.objFunc = chosen.objFunc;
                 }
             }
             
