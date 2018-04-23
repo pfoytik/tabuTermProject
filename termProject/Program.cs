@@ -26,6 +26,7 @@ namespace termProject
         public static int iterNum;
         public static int maxIters;
         public static int bestObj;
+        public static int neighborhood;
 
         public class tabuEntry
         {
@@ -108,7 +109,8 @@ namespace termProject
             tabuCount = 5;
             jobs = 0;
             candCount = 0;
-            maxIters = 10;
+            neighborhood = 9;
+            maxIters = 250000;
             processes = new Dictionary<int, process>();
             jobOrder = new List<int>();
             jobCosts = new List<int>();
@@ -123,21 +125,30 @@ namespace termProject
             printData();
             
             randAssign();
-            assignJobOrder();
+            //assignJobOrder();
+            /*
             foreach (int a in jobOrder)
             {
                 Console.Write(a + " ");
             }
+            */
             Console.WriteLine();
             
-            listCosts();
+            //listCosts();
+            listAllCosts();
+            /*
             foreach (int b in jobCosts)
             {
                 Console.Write(b + " ");
             }
-            Console.WriteLine();
-            calcObj();
-            
+            */
+            Console.WriteLine(" Total CandList " + candList.Count);
+            //for (int i = 0; i < candList.Count; i++)
+            //{
+                chosen = new candidate(0);
+                chosen = candList[0].copyTo(chosen);
+                calcObj();
+            //}
             Console.WriteLine();
             tabu();
             
@@ -160,8 +171,9 @@ namespace termProject
 
         static public void tabu()
         {            
+                //chooseCandidate();
                 //generate initial candidate list
-                populateCandidates(tabuCount);
+                //populateCandidates(tabuCount);
 
                 //Loop until converged or 100 iterations
             for (int i = 0; i < maxIters; i++)
@@ -171,15 +183,24 @@ namespace termProject
                 //retrieve the current best candidate
                 //lowest value z and not tabu
                 //Add it to the tabu list
-                chooseCandidate();
+                chooseCandidate();                
+                populateCandidates(neighborhood);
                 
                 //Calculate new Objective Function for the chosen one
-                calcObj();
 
                 //generate neighbors from the current candidate
-                populateCandidates(tabuCount);
+                
+                //Console.WriteLine(" Did candList grow? " + candList.Count);
+                for (int candIter = 0; candIter < candList.Count; candIter++)
+                {
+                    chosen = new candidate(0);
+                    chosen = candList[candIter].copyTo(chosen);
+                    //Console.WriteLine("Candidate " + chosen.id + " " + chosen.objFunc + " " + chosen.jsOrder.Count + " " + chosen.csOrder.Count);
+                    candList[candIter].objFunc = calcObj();                    
+                }
                 
                 adjustTabuCounts();
+                candCount = 0;
             }
         }
 
@@ -187,9 +208,36 @@ namespace termProject
         {
             //shortcut?
             chosen = new candidate(0);
-            chosen = candList.OrderBy(x => x.objFunc).First();
-            //Console.WriteLine("Testing " + chosen.id + " :" + chosen.objFunc + " listLength = " + candList.Count + " " + candList.OrderByDescending(x => x.objFunc).First().objFunc);
+            Boolean repeat = true;
+            foreach (candidate c in candList.OrderBy(x => x.objFunc))
+            {
+                if (!repeat)
+                {
+                    break;
+                }
+
+                foreach (tabuEntry te in tabuList)
+                {
+                    if ((c.swap1 == te.swap1 && c.swap2 == te.swap2) || (c.swap1 == te.swap2 && c.swap2 == te.swap1))
+                    {
+                        break;
+                    }
+
+                    chosen = c.copyTo(chosen);
+                    //chosen.objFunc = 0;
+                    repeat = false;
+                }
+            }
+
+            if (chosen.id == 0)
+            {
+                chosen = candList.OrderBy(x => x.objFunc).First();                
+            }
+
+            Console.WriteLine("Testing " + chosen.id + " :" + chosen.objFunc + " listLength = " + candList.Count + " " + candList.OrderByDescending(x => x.objFunc).First().objFunc);
             
+            tabuEntry t = new tabuEntry(iterNum, chosen.swap1, chosen.swap2, tabuCount);
+            tabuList.Add(t);
             /*
             foreach(candidate cc in candList.OrderBy(x => x.objFunc))
             {
@@ -246,9 +294,11 @@ namespace termProject
             if (chosen.id > 0)
             {
                 //perform the swap assign
-                swapAssign();
-                listCosts();
-                candList.Add(chosen);
+                iterativeSwap();
+                listAllCosts();
+                //swapAssign();                
+                //listCosts();                
+                //candList.Add(chosen);
             }
             else
             {
@@ -340,6 +390,8 @@ namespace termProject
 
         static public void randAssign()
         {
+            candCount++;
+            candidate c = new candidate(candCount);
             
             jobOrder = new List<int>();
             int count = jobs;
@@ -351,8 +403,44 @@ namespace termProject
                 jobOrder.Add(jobList[randJob]);
                 jobList.RemoveAt(randJob);
             }
+            c.jsOrder = jobOrder;
+            candList.Add(c);
         }
 
+        //pick a random value
+        //based on its location to deadline
+        //if it is closer to deadline find a low cost swap
+        //if it is farther to dealine find a high cost swap
+        static public void improveChance(candidate c, int swapSpot)
+        {
+            
+        }
+        
+        static public void iterativeSwap()
+        {   
+            candList = new List<candidate>();
+            
+            for (int i = 1; i < neighborhood; i++)
+            {                
+                candidate temp = new candidate(0);
+                candCount++;
+                temp = chosen.copyTo(temp);
+                temp.id = temp.id + candCount;
+
+                int temp1 = temp.jsOrder[i];
+                int temp2 = temp.jsOrder[i - 1];
+
+                temp.jsOrder[i] = temp2;
+                temp.jsOrder[i - 1] = temp1;
+                temp.swap1 = temp2;
+                temp.swap2 = temp1;
+                candList.Add(temp);
+            }
+            
+            //Console.WriteLine("Check the neighborhood " + candList.Count);           
+
+        }
+        
         static public void swapAssign()
         {                        
             candidate temp = chosen;
@@ -423,9 +511,7 @@ namespace termProject
             Console.WriteLine("Swapping " + index1 + " and " + index2);
             chosen.jsOrder[i1] = index2;            
             chosen.jsOrder[i2] = index1;
-            chosen.id += iterNum;
-            candList.Add(chosen);
-
+            chosen.id += iterNum;            
         }
         
         static public void listCosts()
@@ -448,6 +534,31 @@ namespace termProject
                 }
             }
         }
+
+        static public void listAllCosts()
+        {
+            //Console.WriteLine("List ALL COSTS " + candList.Count);
+            foreach (candidate c in candList)
+            {
+                if (c.id > 0)
+                {
+                    c.csOrder = new List<int>();
+
+                    for (int i = 0; i < c.jsOrder.Count - 1; i++)
+                    {
+                        c.csOrder.Add(processes[c.jsOrder[i]].costs[c.jsOrder[i + 1]]);
+                    }
+                }
+                else
+                {
+                    jobCosts = new List<int>();
+                    for (int i = 0; i < jobOrder.Count - 1; i++)
+                    {
+                        jobCosts.Add(processes[jobOrder[i]].costs[jobOrder[i + 1]]);
+                    }
+                }
+            }
+        }
         
         static public int calcObj()
         {
@@ -456,7 +567,7 @@ namespace termProject
             int totalEarly = 0;
             int totalTardy = 0;
 
-            Console.WriteLine("BLAH BLAH BLAH " + chosen.id);
+            //Console.WriteLine("BLAH BLAH BLAH " + chosen.id);
             if (chosen.id == 0)
             {
                 for (int i = 0; i < deadline - 1; i++)
@@ -488,28 +599,33 @@ namespace termProject
                 }
             }
 
+            /*
             if (chosen.id > 0)
             {
+                
                 foreach (int a in chosen.jsOrder)
                 {
                     Console.Write(a + " ");
                 }
-                Console.WriteLine("End of jsOrder");
+                //Console.WriteLine("End of jsOrder");
 
                 //listCosts();
                 foreach (int b in chosen.csOrder)
                 {
                     Console.Write(b + " ");
                 }
-                Console.WriteLine("End of csOrder");
+                //Console.WriteLine("End of csOrder");
+              
             }
+            */
             
             int z = totalEarly + totalTardy;
             chosen.objFunc = z;
-            Console.WriteLine("The process list : " + chosen.jsOrder.Count + " " + deadline);
-            Console.WriteLine("The total Early = " + totalEarly);
-            Console.WriteLine("The total Tarty = " + totalTardy);
-            Console.WriteLine("The objective function result is : " + z);
+            //candList.Add(chosen);
+            //Console.WriteLine("The process list : " + chosen.jsOrder.Count + " " + deadline);
+            //Console.WriteLine("The total Early = " + totalEarly);
+            //Console.WriteLine("The total Tarty = " + totalTardy);
+            //Console.WriteLine("The objective function result is : " + z);
             if (bestObj == 0)
             {
                 bestObj = z;
