@@ -3,7 +3,9 @@ using System.CodeDom;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Remoting.Messaging;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -13,9 +15,11 @@ namespace termProject
     internal class Program
     {
         public static int jobs;
+        public static int deadline;
         public static int tabuCount;
         public static int candCount;
         public static Dictionary<int, process> processes;
+        public static Dictionary<int, List<double>> costMat;
         public static List<int> jobOrder;
         public static List<int> jobCosts;
         public static List<candidate> candList;
@@ -107,11 +111,13 @@ namespace termProject
         {
             r = new Random();
             tabuCount = 5;
+            deadline = 0;
             jobs = 0;
             candCount = 0;
             neighborhood = 9;
-            maxIters = 250000;
+            maxIters = 10;
             processes = new Dictionary<int, process>();
+            costMat = new Dictionary<int, List<double>>();
             jobOrder = new List<int>();
             jobCosts = new List<int>();
             candList = new List<candidate>(); 
@@ -179,7 +185,7 @@ namespace termProject
             for (int i = 0; i < maxIters; i++)
             {
                 iterNum = i+1;
-                Console.WriteLine("Iteration number " + i);
+                //Console.WriteLine("Iteration number " + i);
                 //retrieve the current best candidate
                 //lowest value z and not tabu
                 //Add it to the tabu list
@@ -234,7 +240,7 @@ namespace termProject
                 chosen = candList.OrderBy(x => x.objFunc).First();                
             }
 
-            Console.WriteLine("Testing " + chosen.id + " :" + chosen.objFunc + " listLength = " + candList.Count + " " + candList.OrderByDescending(x => x.objFunc).First().objFunc);
+            Console.WriteLine("Iteration number " + iterNum + " Testing " + chosen.id + " :" + chosen.objFunc + " listLength = " + candList.Count + " " + candList.OrderByDescending(x => x.objFunc).First().objFunc);
             
             tabuEntry t = new tabuEntry(iterNum, chosen.swap1, chosen.swap2, tabuCount);
             tabuList.Add(t);
@@ -332,11 +338,9 @@ namespace termProject
         
         static public void readInput(string filename)
         {
-            string[] file = System.IO.File.ReadAllLines(filename);         
-
-            string tmp = "";
-            Dictionary<int, int> dynamicStorage = new Dictionary<int, int>();
-
+            string[] file = System.IO.File.ReadAllLines(filename);
+            double totalCost = 0;
+            
             int procId = 0;
             for (int i = 0; i < file.Length; i++)
             {
@@ -367,7 +371,16 @@ namespace termProject
                             procId = procId + 1;
                             newProc.id = procId;
                             idCount++;
-                            newProc.costs.Add(idCount, Convert.ToInt32(line[j]));
+                            if (idCount == procId)
+                            {
+                                newProc.costs.Add(idCount, Convert.ToInt32(0));
+                                totalCost += Convert.ToInt32(0);
+                            }
+                            else
+                            {
+                                newProc.costs.Add(idCount, Convert.ToInt32(line[j]));
+                                totalCost += Convert.ToInt32(line[j]);
+                            }
                         }
                     }
                     else
@@ -375,7 +388,16 @@ namespace termProject
                         if (!line[j].Equals(""))
                         {
                             idCount++;
-                            newProc.costs.Add(idCount, Convert.ToInt32(line[j]));
+                            if (idCount == procId)
+                            {
+                                newProc.costs.Add(idCount, Convert.ToInt32(0));
+                                totalCost += Convert.ToInt32(0);
+                            }
+                            else
+                            {
+                                newProc.costs.Add(idCount, Convert.ToInt32(line[j]));
+                                totalCost += Convert.ToInt32(line[j]);
+                            }
                         }
                     }                  
                 }
@@ -384,7 +406,28 @@ namespace termProject
                 {
                     processes.Add(newProc.id, newProc);
                 }
-            }         
+            }
+
+            Console.WriteLine("-" + totalCost + "-");
+            foreach (KeyValuePair<int, process> kvp in processes)
+            {
+                List<double> costList = new List<double>();
+                foreach (KeyValuePair<int, int> k in kvp.Value.costs)
+                {
+                    if (kvp.Key == k.Key)
+                    {
+                         costList.Add(0);
+                         Console.Write(0 + " ");
+                    }
+                    else
+                    {
+                        costList.Add((k.Value / totalCost));
+                        Console.Write(String.Format("{0:0.0000}", (k.Value / totalCost)) + " ");
+                    }
+                }
+                Console.WriteLine("-");
+                costMat.Add(kvp.Key, costList);
+            }
 
         }
 
@@ -407,13 +450,66 @@ namespace termProject
             candList.Add(c);
         }
 
-        //pick a random value
+        //recieve a random index
         //based on its location to deadline
         //if it is closer to deadline find a low cost swap
-        //if it is farther to dealine find a high cost swap
-        static public void improveChance(candidate c, int swapSpot)
+        //if it is farther to deadline find a high cost swap
+        //return the index to swap with the swapSpot
+        static public int improveChance(candidate c, int swapSpot)
         {
-            
+            int swapPair=0;
+            //handles case for first element
+            if (swapSpot == 0)
+            {
+                //look at the maximizing the cost of swapspot based on its following value
+                int nextSpot = c.jsOrder[swapSpot + 1];
+           
+                foreach (KeyValuePair<int, process> kvp in processes)
+                {
+                    if (kvp.Key != swapSpot)
+                    {
+                        if (kvp.Value.costs[nextSpot] > c.csOrder[swapSpot])
+                            swapPair = kvp.Key;
+                    }
+                }
+            }
+            else if (swapSpot == (jobs - 1)) //handles case for last element
+            {
+                //look at maximizing the cost of swapspot based on its prior value
+                int priorSpot = c.jsOrder[swapSpot - 1];
+                foreach (KeyValuePair<int, int> kvp in processes[priorSpot].costs)
+                {
+                    if (kvp.Key != swapSpot)
+                    {
+                        if (kvp.Value > c.csOrder.Last())
+                        {
+                            swapPair = kvp.Key;
+                        }
+                    }
+                }
+            }
+            else //handles all other cases
+            {
+                //utilize normal distribution
+                //generate value from two random numbers
+                //Randomly grab new values until a cost threshold is met?
+                
+                int diff = 0;
+                if (swapSpot <= deadline)
+                {
+                    diff = deadline - swapSpot;
+                }
+                else
+                {
+                    diff = swapSpot - deadline;
+                }
+                
+                //The larger the diff value more we should maximize
+                //the smaller the diff value the more we shoudl minimize
+                //diff is 0-deadline
+            }
+
+            return swapPair;
         }
         
         static public void iterativeSwap()
@@ -438,7 +534,18 @@ namespace termProject
             }
             
             //Console.WriteLine("Check the neighborhood " + candList.Count);           
+        }
 
+        static public double genNormal(double r1, double r2, double mean, double stdDev)
+        {
+            //Random rand = new Random(); //reuse this if you are generating many
+            double u1 = 1.0-r1; //uniform(0,1] random doubles
+            double u2 = 1.0-r2;
+            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *
+                                   Math.Sin(2.0 * Math.PI * u2); //random normal(0,1)
+            double randNormal = mean + stdDev * randStdNormal; //random normal(mean,stdDev^2)
+
+            return randNormal;
         }
         
         static public void swapAssign()
@@ -562,7 +669,7 @@ namespace termProject
         
         static public int calcObj()
         {
-            int deadline = jobs / 2;
+            deadline = jobs / 2;
             int counter = 1;
             int totalEarly = 0;
             int totalTardy = 0;
